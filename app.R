@@ -103,10 +103,18 @@ generate_dplyr_code <- function(tibble) {
     }
   }
   
-  code <- paste0(substr(code, 1, nchar(code) - 2), "\n  )")
+  # remove the trailing comma, add newline and close the select statement
+  code <- paste0(
+    substr(
+      code, 
+      start = 1, 
+      stop = nchar(code) - 2
+      ),
+    "\n  )")
   
   return(code)
 }
+
 
 # Define the UI
 ui <- fluidPage(
