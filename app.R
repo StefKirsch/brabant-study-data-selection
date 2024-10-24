@@ -164,7 +164,7 @@ server <- function(input, output, session) {
     ) |> 
       mutate(across(
         everything(),
-        ~ replace_na(.x, FALSE)
+        ~ replace_na(.x, replace = FALSE)
       ))
     
     selectionData(selection_data)
