@@ -53,7 +53,7 @@ process_sheet <- function(sheet_name, file_path) {
       .before = Subscale
     ) |> 
     mutate(across(
-      matches("T[0-9]"),
+      matches("^\\d"), # start with number
       as.logical
     )) |> 
     fill(Subscale, .direction = "down")
@@ -82,11 +82,11 @@ generate_dplyr_code <- function(tibble) {
     for (row in seq_len(nrow(group))) {
       variable <- paste0("starts_with(\"", group$Variable[row], "_\")")
       
-      for (time_point in c("T1", "T2", "T3")) {
+      for (time_point in c("28", "8wPP", "6mPP")) {
         if (group[[row, time_point]]) {
           time_points <- c(
-            time_points, 
-            paste0("    ", variable, " & contains(\"_", time_point, "\")")
+            time_points,
+            paste0("    ", variable, " & (ends_with(\"_", time_point, "\") | ends_with(\"_", time_point, "_r\"))")
           )
         }
       }
