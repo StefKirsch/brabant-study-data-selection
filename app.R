@@ -110,7 +110,7 @@ generate_dplyr_code <- function(tibble) {
       start = 1, 
       stop = nchar(code) - 2
       ),
-    "\n  )")
+    "\n ) |> \n # favor recoded columns if non-recoded column is present \n prefer_recoded_columns() ")
   
   return(code)
 }
