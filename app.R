@@ -116,10 +116,13 @@ generate_dplyr_code <- function(tibble) {
 }
 
 
-# Define the UI
 ui <- fluidPage(
-  #useShinyjs(),
   titlePanel("Excel Data to dplyr Code Converter"),
+  # Add the warning banner below the title with space underneath
+  tags$div(
+    style = "background-color: #FFA500; color: black; padding: 10px; text-align: center; font-weight: bold; font-size: 16px; margin-bottom: 15px;",
+    "Warning: Only upload the variable selection Excel sheets here. DO NOT upload participant data here!"
+  ),
   sidebarLayout(
     sidebarPanel(
       p("Upload an Excel file to generate the dplyr select code. Click 'Convert to Code' to see the generated code and 'Copy Code to Clipboard' to copy the code."),
@@ -139,7 +142,9 @@ ui <- fluidPage(
   )
 )
 
-# Define the server
+
+
+
 server <- function(input, output, session) {
   codeText <- reactiveVal("")
   selectionData <- reactiveVal(NULL)
