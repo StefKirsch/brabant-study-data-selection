@@ -7,7 +7,6 @@ library(stringr)
 library(forcats)
 library(clipr)
 library(shinyalert) # Workflow warnings and errors
-library(shinyAce) # For the copyable text field
 
 # Function to read and process a single sheet
 process_sheet <- function(sheet_name, file_path) {
@@ -62,16 +61,6 @@ process_sheet <- function(sheet_name, file_path) {
   
   return(df)
 }
-
-library(shiny)
-library(readxl)
-library(dplyr)
-library(purrr)
-library(tidyr)
-library(stringr)
-library(forcats)
-library(clipr)
-library(shinyalert)
 
 
 # Function to validate R object names
