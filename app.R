@@ -6,8 +6,8 @@ library(tidyr)
 library(stringr)
 library(forcats)
 library(clipr)
-#library(shinyjs)
-library(shinyalert)
+library(shinyalert) # Workflow warnings and errors
+library(shinyAce) # For the copyable text field
 
 # Function to read and process a single sheet
 process_sheet <- function(sheet_name, file_path) {
@@ -43,7 +43,6 @@ process_sheet <- function(sheet_name, file_path) {
   # remove colons from column names
   col_names <- str_remove(col_names, ":")
   auto_names <- set_names(auto_names, col_names)
-  #auto_names <- auto_names[1:detect_index(col_names, is.na) - 1]
   
   df <- df |>
     rename(
@@ -64,9 +63,27 @@ process_sheet <- function(sheet_name, file_path) {
   return(df)
 }
 
+library(shiny)
+library(readxl)
+library(dplyr)
+library(purrr)
+library(tidyr)
+library(stringr)
+library(forcats)
+library(clipr)
+library(shinyalert)
 
-generate_dplyr_code <- function(tibble) {
-  code <- "select(\n"
+
+# Function to validate R object names
+validate_name <- function(name) {
+  # Check if the name is valid according to R naming rules
+  grepl("^[a-zA-Z][a-zA-Z0-9._]*$", name)
+}
+
+
+generate_dplyr_code <- function(tibble, dataset_name) {
+  full_dataset_name <- paste0("dataset_id_", dataset_name) # Ensure dataset name has the required prefix
+  code <- paste0(full_dataset_name, " <- data_brabant |>\nselect(\n")
   current_category <- ""
   
   tibble_grouped <- tibble |>
@@ -92,8 +109,6 @@ generate_dplyr_code <- function(tibble) {
       for (time_point in c("28", "8wPP", "6mPP", "1yPP")) {
         if (group[[row, time_point]]) {
           
-          #browser()
-          
           # Add explanation as a comment
           if (first_time_point_in_var) {
             time_points <- c( 
@@ -101,9 +116,8 @@ generate_dplyr_code <- function(tibble) {
               paste0(
                 "    # ", 
                 group$Explanation[row],
-                "," # quick and dirty: Add an extra comma so we can remove trailing comma by double comma
+                "," # Add an extra comma so we can remove trailing commas
               )
-              
             )
             first_time_point_in_var <- FALSE
           }
@@ -115,8 +129,6 @@ generate_dplyr_code <- function(tibble) {
         }
       }
     }
-    
-    
     
     if (length(time_points) > 0) {
       if (category != current_category) {
@@ -130,26 +142,33 @@ generate_dplyr_code <- function(tibble) {
     }
   }
   
-  # remove the trailing comma, add newline and close the select statement
+  # Remove the trailing comma, add newline and close the select statement
   code <- paste0(
     substr(
       code, 
       start = 1, 
       stop = nchar(code) - 2
     ),
-    "\n ) |> \n # favor recoded columns if non-recoded column is present \n prefer_recoded_columns() "
-    ) |> 
-    # remove the double commas after the explanation
-    str_replace_all(",,", "")
+    "\n ) |> \n # favor recoded columns if non-recoded column is present \n prefer_recoded_columns()\n\n"
+  )
+  
+  # Add code to write and preview the dataset
+  code <- paste0(
+    code,
+    full_dataset_name, " |> write_sav(\"RDdata/", full_dataset_name, ".sav\")\n\n",
+    "# preview\n",
+    full_dataset_name
+  )
+  
+  # Remove the double commas after the explanation
+  code <- str_replace_all(code, ",,", "")
   
   return(code)
 }
 
 
-
 ui <- fluidPage(
   titlePanel("Excel Data to dplyr Code Converter"),
-  # Add the warning banner below the title with space underneath
   tags$div(
     style = "background-color: #FFA500; color: black; padding: 10px; text-align: center; font-weight: bold; font-size: 16px; margin-bottom: 15px;",
     "Warning: Only upload the variable selection Excel sheets here. DO NOT upload participant data here!"
@@ -158,6 +177,7 @@ ui <- fluidPage(
     sidebarPanel(
       p("Upload an Excel file to generate the dplyr select code. Click 'Convert to Code' to see the generated code and 'Copy Code to Clipboard' to copy the code."),
       fileInput("file", "Choose Excel File", accept = c(".xlsx")),
+      textInput("datasetName", "Enter a valid name for the dataset (it will be prefixed with 'dataset_id_'):", value = ""),
       actionButton("convert", "Convert to Code"),
       actionButton("clear", "Clear"),
       hr(),
@@ -175,19 +195,22 @@ ui <- fluidPage(
 
 
 
-
 server <- function(input, output, session) {
   codeText <- reactiveVal("")
   selectionData <- reactiveVal(NULL)
   
-  # Input file file picker
-  observeEvent(input$file, {
-    updateTabsetPanel(session, "mainTabs", selected = "Data Preview")
-  })
-  
-  # Convert to Code button
   observeEvent(input$convert, {
     req(input$file)
+    
+    dataset_name <- input$datasetName
+    if (!validate_name(dataset_name)) {
+      shinyalert(
+        title = "Invalid Dataset Name",
+        text = "The dataset name must be a valid R object name. It should start with a letter and only contain letters, numbers, periods, or underscores.",
+        type = "error"
+      )
+      return()
+    }
     
     file_path <- input$file$datapath
     sheet_names <- excel_sheets(file_path)
@@ -205,34 +228,29 @@ server <- function(input, output, session) {
     
     selectionData(selection_data)
     
-    select_code <- generate_dplyr_code(selection_data)
-    full_code <- paste0("data_brabant |>\n", select_code)
-    codeText(full_code)
+    select_code <- generate_dplyr_code(selection_data, dataset_name)
+    codeText(select_code)
     
     output$codePreview <- renderText({
-      full_code
+      select_code
     })
     
     output$dataPreview <- renderTable({
       selection_data
     })
     
-    updateTabsetPanel(session, "mainTabs", selected = "Data Preview")
+    updateTabsetPanel(session, "mainTabs", selected = "Code Preview")
   })
   
-  # clear button
   observeEvent(input$clear, {
     updateTabsetPanel(session, "mainTabs", selected = "Data Preview")
     output$dataPreview <- renderTable(NULL)
     output$codePreview <- renderText(NULL)
-    reset("file")
     codeText("")
     selectionData(NULL)
   })
   
-  # Copy Code to Clipboard Button
   observeEvent(input$copyCode, {
-    #req(codeText())
     if (isTruthy(codeText())) {
       write_clip(codeText(), allow_non_interactive = TRUE)
     } else {
@@ -242,15 +260,9 @@ server <- function(input, output, session) {
         type = "warning"
       )
     }
-      
-    
     updateTabsetPanel(session, "mainTabs", selected = "Code Preview")
   })
 }
 
-# Helper function to reset file input
-reset <- function(id) {
-  #shinyjs::reset(id)
-}
 
 shinyApp(ui = ui, server = server)
