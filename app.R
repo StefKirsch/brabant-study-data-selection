@@ -21,6 +21,7 @@ process_sheet <- function(sheet_name, file_path) {
   )
   
   # Read the data. We do this now, because we need the dummy column names
+  # Make sure that the name of all helper sheets that don't have actual data start with an underscore "_"
   df <- file_path |>
     read_excel(
       sheet = sheet_name,
@@ -39,9 +40,10 @@ process_sheet <- function(sheet_name, file_path) {
   ) |> 
     unlist()
   
+  # remove colons from column names
   col_names <- str_remove(col_names, ":")
   auto_names <- set_names(auto_names, col_names)
-  auto_names <- auto_names[1:detect_index(col_names, is.na) - 1]
+  #auto_names <- auto_names[1:detect_index(col_names, is.na) - 1]
   
   df <- df |>
     rename(
@@ -56,12 +58,13 @@ process_sheet <- function(sheet_name, file_path) {
       matches("^\\d"), # start with number
       as.logical
     )) |> 
-    fill(Subscale, .direction = "down")
+    fill(Subscale, .direction = "down") |> 
+    fill(Explanation, .direction = "down") # Ensure Explanation column is filled down
   
   return(df)
 }
 
-# Function to generate dplyr code
+
 generate_dplyr_code <- function(tibble) {
   code <- "select(\n"
   current_category <- ""
@@ -77,13 +80,34 @@ generate_dplyr_code <- function(tibble) {
   for (group in tibble_grouped) {
     category <- unique(group$Category)
     subscale <- unique(group$Subscale)
+    explanation <- unique(group$Explanation) # Get explanations for the subscale
     time_points <- c()
     
     for (row in seq_len(nrow(group))) {
+      
+      first_time_point_in_var <- TRUE
+      
       variable <- paste0("starts_with(\"", group$Variable[row], "_\")")
       
-      for (time_point in c("28", "8wPP", "6mPP")) {
+      for (time_point in c("28", "8wPP", "6mPP", "1yPP")) {
         if (group[[row, time_point]]) {
+          
+          #browser()
+          
+          # Add explanation as a comment
+          if (first_time_point_in_var) {
+            time_points <- c( 
+              time_points,
+              paste0(
+                "    # ", 
+                group$Explanation[row],
+                "," # quick and dirty: Add an extra comma so we can remove trailing comma by double comma
+              )
+              
+            )
+            first_time_point_in_var <- FALSE
+          }
+          
           time_points <- c(
             time_points,
             paste0("    ", variable, " & (ends_with(\"_", time_point, "\") | ends_with(\"_", time_point, "_r\"))")
@@ -92,12 +116,15 @@ generate_dplyr_code <- function(tibble) {
       }
     }
     
+    
+    
     if (length(time_points) > 0) {
       if (category != current_category) {
         code <- paste0(code, "    # ", "Category: ", category, "\n")
         current_category <- category
       }
       code <- paste0(code, "      # ", "Subscale: ", subscale, "\n")
+      
       columns <- paste(time_points, collapse = ",\n    ")
       code <- paste0(code, "    ", columns, ",\n")
     }
@@ -109,11 +136,15 @@ generate_dplyr_code <- function(tibble) {
       code, 
       start = 1, 
       stop = nchar(code) - 2
-      ),
-    "\n ) |> \n # favor recoded columns if non-recoded column is present \n prefer_recoded_columns() ")
+    ),
+    "\n ) |> \n # favor recoded columns if non-recoded column is present \n prefer_recoded_columns() "
+    ) |> 
+    # remove the double commas after the explanation
+    str_replace_all(",,", "")
   
   return(code)
 }
+
 
 
 ui <- fluidPage(
