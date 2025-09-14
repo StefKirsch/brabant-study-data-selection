@@ -14,81 +14,95 @@ library(haven)      # for read_sav() and write_sav()
 library(dplyr)      # for select(), filter(), pipe
 library(stringr)    # for string helpers inside select()
 
+# Helper to prefer *_r over non-recoded duplicates
+prefer_recoded_columns <- function(df) {
+  
+  # Get column names that have a recoded counterpart
+  recoded_columns <- df |> 
+    colnames() |> 
+    # suffix "_r" means they are recoded 
+    str_subset(pattern = "_r$") |>  
+    # remove the suffix again to get the non-recoded column names
+    str_remove(pattern = "_r$") 
+  
+  # Remove non-recoded columns that have a recoded counterpart
+  df <- df |> select(!any_of(recoded_columns))
+  
+  return(df)
+}
+
 # ==== Load dataset ====
 data_brabant <- read_sav(
-  "O:/fsw/Data FSW/MedPsy/Brabant Studie/Data merges/DATA CLEANING/Merge September 2023/MERGES/PREGNANCY_FOLLOWUP_OBSTETRIC_FATHERDATA_MERGE.sav"
+  "O:/fsw/Data FSW/MedPsy/Brabant Studie/Data merges/DATA CLEANING/Merge September 2023/MERGES/PREGNANCY_FOLLOWUP_OBSTETRIC_MERGE.sav"
 )
 
-dataset_id_test_subset <- data_brabant |>
+dataset_id_test_2 <- data_brabant |>
   select(
     # Category: Biological
     # Subscale: Medication
     # Medication usage
-    starts_with("Medication_") & (ends_with("_1y6mPP") | ends_with("_1y6mPP_r")) & !matches("_F_1y6mPP(_r)?$"),
+    matches("^Medication_.*(?<!_F_)(?<=_)1y6mPP(?:_r)?$", perl = TRUE),
     # Medication without doctor's prescription
-    starts_with("Medication_unreg_") & (ends_with("_1y6mPP") | ends_with("_1y6mPP_r")) & !matches("_F_1y6mPP(_r)?$"),
+    matches("^Medication_unreg_.*(?<!_F_)(?<=_)1y6mPP(?:_r)?$", perl = TRUE),
     # Subscale: Doctor Visits
     # GP visit (Yes/No)
-    starts_with("Doctorvisit_") & (ends_with("_1y6mPP") | ends_with("_1y6mPP_r")) & !matches("_F_1y6mPP(_r)?$"),
+    matches("^Doctorvisit_.*(?<!_F_)(?<=_)1y6mPP(?:_r)?$", perl = TRUE),
     # Category: (Post-) Delivery information
     # Subscale: Hospital and Consultations
     # Hospital visits or stays
-    starts_with("Hospital_") & (ends_with("_6mPP") | ends_with("_6mPP_r")) & !matches("_F_6mPP(_r)?$"),
-    starts_with("Hospital_") & (ends_with("_2yPP") | ends_with("_2yPP_r")) & !matches("_F_2yPP(_r)?$"),
+    matches("^Hospital_.*(?<!_F_)(?<=_)6mPP(?:_r)?$", perl = TRUE),
+    matches("^Hospital_.*(?<!_F_)(?<=_)2yPP(?:_r)?$", perl = TRUE),
     # Days in hospital
-    starts_with("Dayshospital_") & (ends_with("_1yPP") | ends_with("_1yPP_r")) & !matches("_F_1yPP(_r)?$"),
+    matches("^Dayshospital_.*(?<!_F_)(?<=_)1yPP(?:_r)?$", perl = TRUE),
     # Category: Demographic
     # Subscale: Language & Migration Status
     # Language understanding of the child
-    starts_with("Language_") & (ends_with("_2yPP") | ends_with("_2yPP_r")) & !matches("_F_2yPP(_r)?$"),
+    matches("^Language_.*(?<!_F_)(?<=_)2yPP(?:_r)?$", perl = TRUE),
     # Migration background
-    starts_with("Migration_") & (ends_with("_1y6mPP") | ends_with("_1y6mPP_r")) & !matches("_F_1y6mPP(_r)?$"),
+    matches("^Migration_.*(?<!_F_)(?<=_)1y6mPP(?:_r)?$", perl = TRUE),
     # Category: Psychological
     # Subscale: Depressive Symptoms
     # Edinburgh Depression Scale
-    starts_with("EDS_") & (ends_with("_2y6mPP") | ends_with("_2y6mPP_r")) & !matches("_F_2y6mPP(_r)?$"),
+    matches("^EDS_.*(?<!_F_)(?<=_)2y6mPP(?:_r)?$", perl = TRUE),
     # Subscale: Anxiety
     # Symptom Check-List-90 - Subscale anxiety
-    starts_with("SCL90_") & (ends_with("_3y6mPP") | ends_with("_3y6mPP_r")) & !matches("_F_3y6mPP(_r)?$"),
+    matches("^SCL90_.*(?<!_F_)(?<=_)3y6mPP(?:_r)?$", perl = TRUE),
     # Category: Social-Relational
     # Subscale: Work and Absenteeism
     # Childcare in the organization
-    starts_with("Childcare_") & (ends_with("_1y6mPP") | ends_with("_1y6mPP_r")) & !matches("_F_1y6mPP(_r)?$"),
-    starts_with("Childcare_") & (ends_with("_3yPP") | ends_with("_3yPP_r")) & !matches("_F_3yPP(_r)?$"),
+    matches("^Childcare_.*(?<!_F_)(?<=_)1y6mPP(?:_r)?$", perl = TRUE),
+    matches("^Childcare_.*(?<!_F_)(?<=_)3yPP(?:_r)?$", perl = TRUE),
     # Compressed workweek (4x9 hours)
-    starts_with("Compressedwork_") & (ends_with("_2yPP") | ends_with("_2yPP_r")) & !matches("_F_2yPP(_r)?$"),
+    matches("^Compressedwork_.*(?<!_F_)(?<=_)2yPP(?:_r)?$", perl = TRUE),
     # Family Supportive Supervisor Behaviors - Short Form
-    starts_with("FSSB_SF_") & (ends_with("_6mPP") | ends_with("_6mPP_r")) & !matches("_F_6mPP(_r)?$"),
+    matches("^FSSB_SF_.*(?<!_F_)(?<=_)6mPP(?:_r)?$", perl = TRUE),
     # Individual Work Performance Questionnaire
-    starts_with("IWPQ_") & (ends_with("_1y6mPP") | ends_with("_1y6mPP_r")) & !matches("_F_1y6mPP(_r)?$"),
+    matches("^IWPQ_.*(?<!_F_)(?<=_)1y6mPP(?:_r)?$", perl = TRUE),
     # Category: Biological - Father
     # Subscale: Chronic conditions father
     # Diagnosis of diabetes - father
-    starts_with("Diabetes_") & (ends_with("_F_F_28") | ends_with("_F_F_28_r")),
+    matches("^Diabetes_.*(?<=_F_)F_28(?:_r)?$", perl = TRUE),
     # Diagnosis of eczema - father
-    starts_with("Eczema_") & (ends_with("_F_F_28") | ends_with("_F_F_28_r")),
+    matches("^Eczema_.*(?<=_F_)F_28(?:_r)?$", perl = TRUE),
     # Diagnosis of hypertension - father
-    starts_with("Hypertension_") & (ends_with("_F_F_28") | ends_with("_F_F_28_r")),
+    matches("^Hypertension_.*(?<=_F_)F_28(?:_r)?$", perl = TRUE),
     # Diagnosis of rheumatism - father
-    starts_with("Rheumatism_") & (ends_with("_F_F_28") | ends_with("_F_F_28_r")),
+    matches("^Rheumatism_.*(?<=_F_)F_28(?:_r)?$", perl = TRUE),
     # Diagnosis of other chronic disease(s) - father
-    starts_with("Chronicdisease_other_") & (ends_with("_F_F_28") | ends_with("_F_F_28_r")),
+    matches("^Chronicdisease_other_.*(?<=_F_)F_28(?:_r)?$", perl = TRUE),
     # Category: Obstetric data
     # Subscale: Breastfeeding & Nutrition
     # Number of pregnancies the participant has had
-    starts_with("Graviditeit_") & (ends_with("_OBS") | ends_with("_OBS_r")) & !matches("_F_OBS(_r)?$"),
+    matches("^Graviditeit_.*(?<!_F_)(?<=_)OBS(?:_r)?$", perl = TRUE),
     # Maternal status before delivery
-    starts_with("Mater_voor_partus_") & (ends_with("_OBS") | ends_with("_OBS_r")) & !matches("_F_OBS(_r)?$"),
+    matches("^Mater_voor_partus_.*(?<!_F_)(?<=_)OBS(?:_r)?$", perl = TRUE),
     # Number of times the participant has given birth
-    starts_with("Pariteit_") & (ends_with("_OBS") | ends_with("_OBS_r")) & !matches("_F_OBS(_r)?$"),
+    matches("^Pariteit_.*(?<!_F_)(?<=_)OBS(?:_r)?$", perl = TRUE),
     # Subscale: Previous Obstetric Complications
     # Indicates if there was a history of gestational diabetes
-    starts_with("OVG_diabetes_gravidarum_") & (ends_with("_OBS") | ends_with("_OBS_r")) & !matches("_F_OBS(_r)?$")
+    matches("^OVG_diabetes_gravidarum_.*(?<!_F_)(?<=_)OBS(?:_r)?$", perl = TRUE)
   ) |>
   # favor recoded columns if non-recoded column is present
   prefer_recoded_columns()
 
-dataset_id_test_subset |> write_sav("RDdata/dataset_id_test_subset.sav")
-
-# preview
-dataset_id_test_subset
+dataset_id_test_2 |> write_sav("C:/Users/u702065/data warehouse repository/dataset_id_test.sav")
