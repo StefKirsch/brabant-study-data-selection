@@ -90,6 +90,10 @@ dataset_id_test_2 <- data_brabant |>
     matches("^Rheumatism_.*(?<=_)F_28(?:_r)?$", perl = TRUE),
     # Diagnosis of other chronic disease(s) - father
     matches("^Chronicdisease_other_.*(?<=_)F_28(?:_r)?$", perl = TRUE),
+    # Category: Child-Related Info - Father
+    # Subscale: Infant and Child Temperament - father
+    # Infant Behavior Questionnaire - Very Short Form
+    matches("^IBQ_VSF_.*(?<=_)F_6mPP(?:_r)?$", perl = TRUE),
     # Category: Obstetric data
     # Subscale: Breastfeeding & Nutrition
     # Number of pregnancies the participant has had
