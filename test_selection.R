@@ -33,7 +33,7 @@ prefer_recoded_columns <- function(df) {
 
 # ==== Load dataset ====
 data_brabant <- read_sav(
-  "O:/fsw/Data FSW/MedPsy/Brabant Studie/Data merges/DATA CLEANING/Merge September 2023/MERGES/PREGNANCY_FOLLOWUP_OBSTETRIC_MERGE.sav"
+  "O:/fsw/Data FSW/MedPsy/Brabant Studie/Data merges/DATA CLEANING/Merge September 2023/MERGES/PREGNANCY_FOLLOWUP_OBSTETRIC_FATHERDATA_MERGE.sav"
 )
 
 dataset_id_test_2 <- data_brabant |>
@@ -81,15 +81,15 @@ dataset_id_test_2 <- data_brabant |>
     # Category: Biological - Father
     # Subscale: Chronic conditions father
     # Diagnosis of diabetes - father
-    matches("^Diabetes_.*(?<=_F_)F_28(?:_r)?$", perl = TRUE),
+    matches("^Diabetes_.*(?<=_)F_28(?:_r)?$", perl = TRUE),
     # Diagnosis of eczema - father
-    matches("^Eczema_.*(?<=_F_)F_28(?:_r)?$", perl = TRUE),
+    matches("^Eczema_.*(?<=_)F_28(?:_r)?$", perl = TRUE),
     # Diagnosis of hypertension - father
-    matches("^Hypertension_.*(?<=_F_)F_28(?:_r)?$", perl = TRUE),
+    matches("^Hypertension_.*(?<=_)F_28(?:_r)?$", perl = TRUE),
     # Diagnosis of rheumatism - father
-    matches("^Rheumatism_.*(?<=_F_)F_28(?:_r)?$", perl = TRUE),
+    matches("^Rheumatism_.*(?<=_)F_28(?:_r)?$", perl = TRUE),
     # Diagnosis of other chronic disease(s) - father
-    matches("^Chronicdisease_other_.*(?<=_F_)F_28(?:_r)?$", perl = TRUE),
+    matches("^Chronicdisease_other_.*(?<=_)F_28(?:_r)?$", perl = TRUE),
     # Category: Obstetric data
     # Subscale: Breastfeeding & Nutrition
     # Number of pregnancies the participant has had
@@ -104,5 +104,8 @@ dataset_id_test_2 <- data_brabant |>
   ) |>
   # favor recoded columns if non-recoded column is present
   prefer_recoded_columns()
+
+# preview
+dataset_id_test_2
 
 dataset_id_test_2 |> write_sav("C:/Users/u702065/data warehouse repository/dataset_id_test.sav")

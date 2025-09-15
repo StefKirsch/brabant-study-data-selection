@@ -165,7 +165,7 @@ generate_dplyr_code <- function(tibble, dataset_name, timepoints_map) {
             if (is_father) {
               # Start with <var>_ and end with _F_<tp> or _F_<tp>_r
               selector <- paste0(
-                "matches(\"^", varname, "_.*(?<=_F_)", tp, "(?:_r)?$\", perl = TRUE)"
+                "matches(\"^", varname, "_.*(?<=_)", "F_", tp, "(?:_r)?$\", perl = TRUE)"
               )
             } else {
               # Start with <var>_ and end with _<tp> or _<tp>_r, but NOT _F_<tp>
