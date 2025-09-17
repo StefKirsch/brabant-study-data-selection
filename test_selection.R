@@ -36,6 +36,8 @@ data_brabant <- read_sav(
   "O:/fsw/Data FSW/MedPsy/Brabant Studie/Data merges/DATA CLEANING/Merge September 2023/MERGES/PREGNANCY_FOLLOWUP_OBSTETRIC_FATHERDATA_MERGE.sav"
 )
 
+# NOTE: DATA FROM THE MOTHER AFTER 2 YEARS POSTPARTUM IS NOT COMPLETE YET (DATA COLLECTION IS STILL ONGOING)
+
 dataset_id_test_2 <- data_brabant |>
   select(
     # Category: Biological
@@ -72,8 +74,11 @@ dataset_id_test_2 <- data_brabant |>
     # Childcare in the organization
     matches("^Childcare_.*(?<!_F_)(?<=_)1y6mPP(?:_r)?$", perl = TRUE),
     matches("^Childcare_.*(?<!_F_)(?<=_)3yPP(?:_r)?$", perl = TRUE),
+    matches("^Childcare_.*(?<!_F_)(?<=_)3y6mPP(?:_r)?$", perl = TRUE),
     # Compressed workweek (4x9 hours)
     matches("^Compressedwork_.*(?<!_F_)(?<=_)2yPP(?:_r)?$", perl = TRUE),
+    # Flexible working hours
+    matches("^Flexiblehours_.*(?<!_F_)(?<=_)3y6mPP(?:_r)?$", perl = TRUE),
     # Family Supportive Supervisor Behaviors - Short Form
     matches("^FSSB_SF_.*(?<!_F_)(?<=_)6mPP(?:_r)?$", perl = TRUE),
     # Individual Work Performance Questionnaire
