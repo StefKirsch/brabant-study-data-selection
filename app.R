@@ -10,7 +10,6 @@ source("R/helpers.R")
 
 ui <- fluidPage(
   titlePanel("Excel Data to dplyr Code Converter"),
-  useShinyalert(),
   tags$div(
     style = "background-color: #FFA500; color: black; padding: 10px; text-align: center; font-weight: bold; font-size: 16px; margin-bottom: 15px;",
     "Warning: Only upload the variable selection Excel sheets here. DO NOT upload participant data here!"
