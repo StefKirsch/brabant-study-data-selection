@@ -58,15 +58,19 @@ get_timepoints_for_sheet <- function(file_path, sheet_name) {
 process_sheet <- function(sheet_name, file_path, timepoints) {
   header_df <- read_excel(
     file_path,
-    sheet = sheet_name, n_max = 2,
-    col_names = FALSE, .name_repair = "unique_quiet",
+    sheet = sheet_name, 
+    n_max = 2,
+    col_names = FALSE,
+    .name_repair = "unique_quiet",
     col_types = "text"
   )
 
   df <- read_excel(
     file_path,
-    sheet = sheet_name, skip = 0,
-    col_names = FALSE, .name_repair = "unique_quiet",
+    sheet = sheet_name,
+    skip = 0,
+    col_names = FALSE,
+    .name_repair = "unique_quiet",
     col_types = "text"
   ) |>
     slice(-1:-2)
