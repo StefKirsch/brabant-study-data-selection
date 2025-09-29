@@ -2,158 +2,10 @@ library(shiny)
 library(readxl)
 library(dplyr)
 library(purrr)
-library(tidyr)
 library(stringr)
-library(forcats)
 library(clipr)
-library(shinyalert) # Workflow warnings and errors
-
-# Function to read and process a single sheet
-process_sheet <- function(sheet_name, file_path) {
-  # Read the first two rows to determine the column names
-  header_df <- read_excel(
-    file_path, 
-    sheet = sheet_name, 
-    n_max = 2,
-    col_names = FALSE,
-    .name_repair = "unique_quiet"
-  )
-  
-  # Read the data. We do this now, because we need the dummy column names
-  # Make sure that the name of all helper sheets that don't have actual data start with an underscore "_"
-  df <- file_path |>
-    read_excel(
-      sheet = sheet_name,
-      skip = 0, 
-      col_names = FALSE,
-      .name_repair = "unique_quiet"
-    ) |> 
-    slice(-1:-2)
-  
-  auto_names <- colnames(df)
-  
-  col_names <- ifelse(
-    is.na(header_df[2, ]),
-    header_df[1, ],
-    header_df[2, ]
-  ) |> 
-    unlist()
-  
-  # remove colons from column names
-  col_names <- str_remove(col_names, ":")
-  auto_names <- set_names(auto_names, col_names)
-  
-  df <- df |>
-    rename(
-      any_of(auto_names)
-    ) |> 
-    select(names(auto_names)) |> 
-    mutate(
-      Category = sheet_name,
-      .before = Subscale
-    ) |> 
-    mutate(across(
-      matches("^\\d"), # start with number
-      as.logical
-    )) |> 
-    fill(Subscale, .direction = "down") |> 
-    fill(Explanation, .direction = "down") # Ensure Explanation column is filled down
-  
-  return(df)
-}
-
-
-# Function to validate R object names
-validate_name <- function(name) {
-  # Check if the name is valid according to R naming rules
-  grepl("^[a-zA-Z][a-zA-Z0-9._]*$", name)
-}
-
-
-generate_dplyr_code <- function(tibble, dataset_name) {
-  full_dataset_name <- paste0("dataset_id_", dataset_name) # Ensure dataset name has the required prefix
-  code <- paste0(full_dataset_name, " <- data_brabant |>\nselect(\n")
-  current_category <- ""
-  
-  tibble_grouped <- tibble |>
-    mutate(
-      Category = as_factor(Category),
-      Subscale = as_factor(Subscale)
-    ) |> 
-    group_by(Category, Subscale) |>
-    group_split()
-  
-  for (group in tibble_grouped) {
-    category <- unique(group$Category)
-    subscale <- unique(group$Subscale)
-    explanation <- unique(group$Explanation) # Get explanations for the subscale
-    time_points <- c()
-    
-    for (row in seq_len(nrow(group))) {
-      
-      first_time_point_in_var <- TRUE
-      
-      variable <- paste0("starts_with(\"", group$Variable[row], "_\")")
-      
-      for (time_point in c("28", "8wPP", "6mPP", "1yPP")) {
-        if (group[[row, time_point]]) {
-          
-          # Add explanation as a comment
-          if (first_time_point_in_var) {
-            time_points <- c( 
-              time_points,
-              paste0(
-                "    # ", 
-                group$Explanation[row],
-                "," # Add an extra comma so we can remove trailing commas
-              )
-            )
-            first_time_point_in_var <- FALSE
-          }
-          
-          time_points <- c(
-            time_points,
-            paste0("    ", variable, " & (ends_with(\"_", time_point, "\") | ends_with(\"_", time_point, "_r\"))")
-          )
-        }
-      }
-    }
-    
-    if (length(time_points) > 0) {
-      if (category != current_category) {
-        code <- paste0(code, "    # ", "Category: ", category, "\n")
-        current_category <- category
-      }
-      code <- paste0(code, "      # ", "Subscale: ", subscale, "\n")
-      
-      columns <- paste(time_points, collapse = ",\n    ")
-      code <- paste0(code, "    ", columns, ",\n")
-    }
-  }
-  
-  # Remove the trailing comma, add newline and close the select statement
-  code <- paste0(
-    substr(
-      code, 
-      start = 1, 
-      stop = nchar(code) - 2
-    ),
-    "\n ) |> \n # favor recoded columns if non-recoded column is present \n prefer_recoded_columns()\n\n"
-  )
-  
-  # Add code to write and preview the dataset
-  code <- paste0(
-    code,
-    full_dataset_name, " |> write_sav(\"RDdata/", full_dataset_name, ".sav\")\n\n",
-    "# preview\n",
-    full_dataset_name
-  )
-  
-  # Remove the double commas after the explanation
-  code <- str_replace_all(code, ",,", "")
-  
-  return(code)
-}
+library(shinyalert)
+source("R/helpers.R")
 
 
 ui <- fluidPage(
@@ -182,15 +34,13 @@ ui <- fluidPage(
   )
 )
 
-
-
 server <- function(input, output, session) {
   codeText <- reactiveVal("")
   selectionData <- reactiveVal(NULL)
-  
+
   observeEvent(input$convert, {
     req(input$file)
-    
+
     dataset_name <- input$datasetName
     if (!validate_name(dataset_name)) {
       shinyalert(
@@ -200,37 +50,44 @@ server <- function(input, output, session) {
       )
       return()
     }
-    
+
     file_path <- input$file$datapath
     sheet_names <- excel_sheets(file_path)
     sheet_names <- sheet_names[!startsWith(sheet_names, "_")]
-    
+
+    # Map of timepoints per sheet from headers
+    timepoints_map <- map(sheet_names, ~ get_timepoints_for_sheet(file_path, .x)) |>
+      set_names(sheet_names)
+
+    # Read all sheets
     selection_data <- map_df(
-      sheet_names, 
-      process_sheet, 
-      file_path = file_path
-    ) |> 
-      mutate(across(
-        everything(),
-        ~ replace_na(.x, replace = FALSE)
-      ))
-    
+      sheet_names,
+      ~ process_sheet(.x, file_path, timepoints = timepoints_map[[.x]])
+    ) |>
+      mutate(
+        across(where(is.logical), ~ replace_na(.x, FALSE)),
+        across(where(is.character), ~ replace_na(.x, ""))
+      )
+
     selectionData(selection_data)
-    
-    select_code <- generate_dplyr_code(selection_data, dataset_name)
+
+    # Generate code (with robust fallbacks)
+    select_code <- generate_dplyr_code(selection_data, dataset_name, timepoints_map)
     codeText(select_code)
-    
-    output$codePreview <- renderText({
-      select_code
-    })
-    
-    output$dataPreview <- renderTable({
-      selection_data
-    })
-    
+
+    output$codePreview <- renderText(select_code)
+    output$dataPreview <- renderTable(selection_data)
     updateTabsetPanel(session, "mainTabs", selected = "Code Preview")
+
+    if (grepl("\\(No variables matched your selection", select_code, fixed = TRUE)) {
+      shinyalert(
+        title = "No matches found",
+        text = "I didn't find any variables that met the sheet/timepoint rules (including Father/OBS). Check the headers or your ticks.",
+        type = "warning"
+      )
+    }
   })
-  
+
   observeEvent(input$clear, {
     updateTabsetPanel(session, "mainTabs", selected = "Data Preview")
     output$dataPreview <- renderTable(NULL)
@@ -238,10 +95,15 @@ server <- function(input, output, session) {
     codeText("")
     selectionData(NULL)
   })
-  
+
   observeEvent(input$copyCode, {
     if (isTruthy(codeText())) {
       write_clip(codeText(), allow_non_interactive = TRUE)
+      shinyalert(
+        title = "Copied",
+        text = "The generated dplyr code has been copied to your clipboard.",
+        type = "success"
+      )
     } else {
       shinyalert(
         title = "Warning",
@@ -252,6 +114,5 @@ server <- function(input, output, session) {
     updateTabsetPanel(session, "mainTabs", selected = "Code Preview")
   })
 }
-
 
 shinyApp(ui = ui, server = server)
