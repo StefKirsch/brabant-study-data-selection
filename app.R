@@ -37,10 +37,10 @@ ui <- fluidPage(
 server <- function(input, output, session) {
   codeText <- reactiveVal("")
   selectionData <- reactiveVal(NULL)
-  
+
   observeEvent(input$convert, {
     req(input$file)
-    
+
     dataset_name <- input$datasetName
     if (!validate_name(dataset_name)) {
       shinyalert(
@@ -50,15 +50,15 @@ server <- function(input, output, session) {
       )
       return()
     }
-    
+
     file_path <- input$file$datapath
     sheet_names <- excel_sheets(file_path)
     sheet_names <- sheet_names[!startsWith(sheet_names, "_")]
-    
+
     # Map of timepoints per sheet from headers
     timepoints_map <- map(sheet_names, ~ get_timepoints_for_sheet(file_path, .x)) |>
       set_names(sheet_names)
-    
+
     # Read all sheets
     selection_data <- map_df(
       sheet_names,
@@ -68,17 +68,17 @@ server <- function(input, output, session) {
         across(where(is.logical), ~ replace_na(.x, FALSE)),
         across(where(is.character), ~ replace_na(.x, ""))
       )
-    
+
     selectionData(selection_data)
-    
+
     # Generate code (with robust fallbacks)
     select_code <- generate_dplyr_code(selection_data, dataset_name, timepoints_map)
     codeText(select_code)
-    
+
     output$codePreview <- renderText(select_code)
-    output$dataPreview  <- renderTable(selection_data)
+    output$dataPreview <- renderTable(selection_data)
     updateTabsetPanel(session, "mainTabs", selected = "Code Preview")
-    
+
     if (grepl("\\(No variables matched your selection", select_code, fixed = TRUE)) {
       shinyalert(
         title = "No matches found",
@@ -87,7 +87,7 @@ server <- function(input, output, session) {
       )
     }
   })
-  
+
   observeEvent(input$clear, {
     updateTabsetPanel(session, "mainTabs", selected = "Data Preview")
     output$dataPreview <- renderTable(NULL)
@@ -95,7 +95,7 @@ server <- function(input, output, session) {
     codeText("")
     selectionData(NULL)
   })
-  
+
   observeEvent(input$copyCode, {
     if (isTruthy(codeText())) {
       write_clip(codeText(), allow_non_interactive = TRUE)
