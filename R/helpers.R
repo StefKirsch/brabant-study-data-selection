@@ -142,11 +142,15 @@ validate_name <- function(name) grepl("^[a-zA-Z][a-zA-Z0-9._]*$", name)
 # Build dplyr code
 generate_dplyr_code <- function(tibble, dataset_name, timepoints_map) {
   full_dataset_name <- paste0("dataset_id_", dataset_name)
-  # Prepend an all-caps comment message
+  
   code <- paste0(
+    # Prepend an all-caps comment message
     "# NOTE: DATA FROM THE MOTHER AFTER 2 YEARS POSTPARTUM IS NOT COMPLETE YET (DATA COLLECTION IS STILL ONGOING)\n\n",
-    full_dataset_name, " <- data_brabant |>\nselect(\n"
+    full_dataset_name, " <- data_brabant |>\nselect(\n",
+    # Always select the ParticipantID
+    "        ParticipantID,\n"
   )
+  
   current_category <- ""
   added_any <- FALSE
 
